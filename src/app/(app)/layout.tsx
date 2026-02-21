@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth";
 import Sidebar from "@/components/app/Sidebar";
-import SignOutButton from "@/components/app/SignOutButton";
 
 export default async function AppLayout({
   children,
@@ -28,16 +27,6 @@ export default async function AppLayout({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between gap-4 border-b border-zinc-200 bg-white px-6 py-4">
-            <div>
-              <p className="text-sm font-medium text-zinc-900">DeCora Florida</p>
-              <p className="text-xs text-zinc-500">Event Management</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <SignOutButton />
-            </div>
-          </header>
-
           <main className="min-w-0 flex-1 px-6 py-6">{children}</main>
         </div>
       </div>
