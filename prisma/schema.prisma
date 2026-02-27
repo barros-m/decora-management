@@ -1,0 +1,525 @@
+// prisma/schema.prisma (single-tenant MVP) — UPDATED to match Inquiry form UI
+// Includes: name, email, phone, event type, event date, address, adults/children, vision/notes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  USER
+}
+
+enum InquiryStatus {
+  NEW
+  IN_REVIEW
+  WAITING_ON_CLIENT
+  QUOTING
+  QUOTED_WAITING
+  ACCEPTED_NOT_BOOKED
+  BOOKED
+  LOST
+  DISQUALIFIED
+  EXPIRED
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  NEEDS_CHANGES
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  SUPERSEDED
+}
+
+enum BookingStatus {
+  TENTATIVE_HOLD
+  ACCEPTED
+  BOOKED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum EventStatus {
+  PLANNING
+  CONFIRMING_VENDORS
+  READY
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  BLOCKED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum VendorEngagementStatus {
+  NOT_NEEDED
+  NEEDED
+  CONTACTED
+  QUOTED
+  CONFIRMED
+  PAID
+  CANCELLED
+}
+
+enum CommunicationDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum CommunicationChannel {
+  EMAIL
+  PHONE
+  WHATSAPP
+  SMS
+  IN_PERSON
+}
+
+enum CapacitySeverity {
+  NONE
+  WARNING
+  BLOCK
+}
+
+enum CalendarProvider {
+  GOOGLE
+}
+
+enum CalendarEventKind {
+  HOLD
+  BOOKED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(USER)
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedInquiries Inquiry[]     @relation("InquiryAssignee")
+  assignedTasks     Task[]        @relation("TaskAssignee")
+  activity          ActivityLog[] @relation("ActorActivity")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  fullName  String?
+  email     String?
+  phone     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inquiries Inquiry[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+model Inquiry {
+  id         String        @id @default(cuid())
+  customerId String?
+  status     InquiryStatus @default(NEW)
+
+  // form: contact
+  contactName  String
+  contactEmail String
+  contactPhone String?
+
+  // form: event
+  eventType  String
+  eventDate  DateTime? // date-of-event; store at midnight in local timezone or UTC (consistent rule)
+
+  // form: address
+  address1 String?
+  address2 String?
+  city     String?
+  state    String?
+  zipCode  String?
+
+  // form: guests
+  guestCountAdults   Int?
+  guestCountChildren Int?
+
+  // form: vision/notes
+  visionNotes String?
+
+  // internal scheduling preferences (optional; can be derived from eventDate later)
+  desiredStartAt DateTime?
+  desiredEndAt   DateTime?
+
+  // ops
+  assignedToId String?
+  capacity     CapacitySeverity @default(NONE)
+
+  // follow-up
+  followUpAt DateTime?
+  source     String? // e.g. "decoraflorida.com"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  assignedTo User?     @relation("InquiryAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  proposals Proposal[]
+  booking   Booking?
+  event     EventProject?
+
+  communications Communication[]
+  activities     ActivityLog[]
+  attachments    Attachment[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([eventDate])
+  @@index([desiredStartAt])
+  @@index([assignedToId])
+  @@index([contactEmail])
+  @@index([city])
+  @@index([state])
+  @@index([zipCode])
+}
+
+model Proposal {
+  id        String         @id @default(cuid())
+  inquiryId String
+  version   Int
+  status    ProposalStatus @default(DRAFT)
+
+  sentAt     DateTime?
+  followUpAt DateTime?
+  expiresAt  DateTime?
+
+  acceptedPackageId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inquiry Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  packages        ProposalPackage[]
+  acceptedPackage ProposalPackage? @relation("AcceptedPackage", fields: [acceptedPackageId], references: [id], onDelete: SetNull)
+
+  communications Communication[]
+  attachments    Attachment[]
+  activities     ActivityLog[]
+
+  @@unique([inquiryId, version])
+  @@index([status])
+  @@index([sentAt])
+  @@index([followUpAt])
+}
+
+model ProposalPackage {
+  id            String @id @default(cuid())
+  proposalId     String
+  name           String
+  description    String?
+  subtotalCents  Int    @default(0)
+  currency       String @default("USD")
+  presentationUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  items    ProposalLineItem[]
+
+  acceptedInProposal Proposal? @relation("AcceptedPackage")
+
+  @@index([proposalId])
+}
+
+model ProposalLineItem {
+  id          String @id @default(cuid())
+  packageId   String
+  title       String
+  description String?
+  quantity    Int    @default(1)
+  unitCents   Int    @default(0)
+  totalCents  Int    @default(0)
+  sortOrder   Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  package ProposalPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([packageId, sortOrder])
+}
+
+model Booking {
+  id        String        @id @default(cuid())
+  inquiryId String        @unique
+  status    BookingStatus @default(TENTATIVE_HOLD)
+
+  calendarProvider CalendarProvider @default(GOOGLE)
+  calendarId       String?
+  calendarEventId  String?
+  calendarKind     CalendarEventKind @default(HOLD)
+
+  holdExpiresAt DateTime?
+  bookedAt      DateTime?
+  cancelledAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inquiry Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([holdExpiresAt])
+}
+
+model EventProject {
+  id        String     @id @default(cuid())
+  inquiryId String?    @unique
+  status    EventStatus @default(PLANNING)
+
+  title     String?
+  eventType String
+  startAt   DateTime?
+  endAt     DateTime?
+
+  // location
+  address1   String?
+  address2   String?
+  city       String?
+  state      String?
+  zipCode    String?
+  venueNotes String?
+
+  // details
+  guestCount Int?
+  theme      String?
+  colors     String?
+  notes      String?
+
+  // package snapshot
+  acceptedProposalId  String?
+  acceptedPackageName String?
+  acceptedPackageData Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inquiry Inquiry? @relation(fields: [inquiryId], references: [id], onDelete: SetNull)
+
+  tasks          Task[]
+  vendorNeeds    VendorNeed[]
+  attachments    Attachment[]
+  communications Communication[]
+  activities     ActivityLog[]
+
+  @@index([status])
+  @@index([startAt])
+}
+
+model TaskTemplate {
+  id       String  @id @default(cuid())
+  name     String
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items TaskTemplateItem[]
+
+  @@index([isActive])
+}
+
+model TaskTemplateItem {
+  id           String @id @default(cuid())
+  templateId   String
+  title        String
+  category     String?
+  description  String?
+  dueDaysOffset Int?
+  sortOrder    Int @default(0)
+
+  template TaskTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, sortOrder])
+}
+
+model Task {
+  id     String     @id @default(cuid())
+  eventId String
+  status TaskStatus @default(NOT_STARTED)
+
+  title       String
+  category    String?
+  description String?
+
+  dueAt       DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  assignedToId String?
+  sortOrder    Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event      EventProject @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedTo User?        @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  attachments Attachment[]
+  activities  ActivityLog[]
+
+  @@index([status])
+  @@index([eventId, sortOrder])
+  @@index([eventId, dueAt])
+  @@index([assignedToId])
+}
+
+model Vendor {
+  id          String @id @default(cuid())
+  name        String
+  category    String?
+  email       String?
+  phone       String?
+  website     String?
+  instagram   String?
+  contactName String?
+  notes       String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendorNeeds VendorNeed[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model VendorNeed {
+  id       String @id @default(cuid())
+  eventId  String
+  vendorId String?
+
+  category String
+  status   VendorEngagementStatus @default(NEEDED)
+
+  quotedCents Int?
+  currency   String @default("USD")
+
+  dueAt  DateTime?
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event  EventProject @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  vendor Vendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, status])
+  @@index([category])
+}
+
+model Communication {
+  id String @id @default(cuid())
+
+  inquiryId  String?
+  proposalId String?
+  eventId    String?
+
+  direction  CommunicationDirection
+  channel    CommunicationChannel @default(EMAIL)
+  subject    String?
+  body       String?
+  occurredAt DateTime @default(now())
+
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  inquiry   Inquiry?      @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  proposal  Proposal?     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  event     EventProject? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdBy User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([occurredAt])
+  @@index([inquiryId])
+  @@index([proposalId])
+  @@index([eventId])
+}
+
+model Attachment {
+  id String @id @default(cuid())
+
+  inquiryId  String?
+  proposalId String?
+  eventId    String?
+  taskId     String?
+
+  fileName  String
+  mimeType  String?
+  url       String
+  sizeBytes Int?
+
+  createdAt    DateTime @default(now())
+  createdById  String?
+
+  inquiry   Inquiry?      @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  proposal  Proposal?     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  event     EventProject? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  task      Task?         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdBy User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([inquiryId])
+  @@index([proposalId])
+  @@index([eventId])
+  @@index([taskId])
+}
+
+model ActivityLog {
+  id String @id @default(cuid())
+
+  inquiryId  String?
+  proposalId String?
+  bookingId  String?
+  eventId    String?
+  taskId     String?
+
+  actorId String?
+
+  type    String
+  message String?
+  data    Json?
+
+  createdAt DateTime @default(now())
+
+  inquiry  Inquiry?  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  proposal Proposal? @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  event    EventProject? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  task     Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  actor User? @relation("ActorActivity", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([type])
+  @@index([inquiryId])
+  @@index([eventId])
+}
