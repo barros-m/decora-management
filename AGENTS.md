@@ -12,6 +12,14 @@
 - No tenant scoping required in queries.
 - Authorization is role-based (OWNER/ADMIN/USER).
 
+## Configurability (Required)
+- Avoid hardcoding environment-specific values (URLs, IDs, API keys, secrets, connection strings).
+- Use `.env` for all secrets and integration/config values (DB, Google Calendar, Vercel Blob, base URLs, feature flags).
+- UI theming must be configurable via Tailwind theme tokens:
+  - Prefer Tailwind theme colors (no ad-hoc hex values in components).
+  - Prefer theme-driven borders/radii (no ad-hoc `border-*` colors or arbitrary `rounded-[...]` unless there’s a strong reason).
+  - If introducing new design tokens, add them to Tailwind config (or a shared token layer) rather than duplicating values across components.
+
 ## Architecture rules
 - Server-only code in `/src/server/*`:
   - `/src/server/db.ts` (Prisma client)

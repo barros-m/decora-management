@@ -1,7 +1,8 @@
-import dotenv from "dotenv";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import bcrypt from "bcryptjs";
+/* eslint-disable @typescript-eslint/no-require-imports */
+const dotenv = require("dotenv");
+const { PrismaClient } = require("@prisma/client");
+const { PrismaPg } = require("@prisma/adapter-pg");
+const bcrypt = require("bcryptjs");
 
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
@@ -20,7 +21,7 @@ async function main() {
   const name = process.env.SEED_USER_NAME?.trim();
   const role = process.env.SEED_USER_ROLE?.trim().toUpperCase();
 
-  const missing: string[] = [];
+  const missing = [];
   if (!email) missing.push("SEED_USER_EMAIL");
   if (!password) missing.push("SEED_USER_PASSWORD");
   if (!name) missing.push("SEED_USER_NAME");
@@ -43,17 +44,17 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 12);
 
   const user = await prisma.user.upsert({
-    where: { email: email! },
+    where: { email },
     create: {
-      email: email!,
-      name: name!,
-      role: role as "OWNER" | "ADMIN" | "USER",
+      email,
+      name,
+      role,
       isActive: true,
       passwordHash,
     },
     update: {
-      name: name!,
-      role: role as "OWNER" | "ADMIN" | "USER",
+      name,
+      role,
       isActive: true,
       passwordHash,
     },
@@ -61,7 +62,6 @@ async function main() {
   });
 
   if (!user?.id) throw new Error("Seed user upsert failed.");
-
   console.log(`Seeded user: ${user.email} (${user.role})`);
 }
 

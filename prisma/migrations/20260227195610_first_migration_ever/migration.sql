@@ -1,0 +1,35 @@
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('OWNER', 'ADMIN', 'USER');
+
+-- CreateEnum
+CREATE TYPE "InquiryStatus" AS ENUM ('NEW', 'IN_REVIEW', 'WAITING_ON_CLIENT', 'QUOTING', 'QUOTED_WAITING', 'ACCEPTED_NOT_BOOKED', 'BOOKED', 'LOST', 'DISQUALIFIED', 'EXPIRED');
+
+-- CreateEnum
+CREATE TYPE "ProposalStatus" AS ENUM ('DRAFT', 'SENT', 'NEEDS_CHANGES', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'SUPERSEDED');
+
+-- CreateEnum
+CREATE TYPE "BookingStatus" AS ENUM ('TENTATIVE_HOLD', 'ACCEPTED', 'BOOKED', 'CANCELLED', 'RESCHEDULED');
+
+-- CreateEnum
+CREATE TYPE "EventStatus" AS ENUM ('PLANNING', 'CONFIRMING_VENDORS', 'READY', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "TaskStatus" AS ENUM ('NOT_STARTED', 'BLOCKED', 'IN_PROGRESS', 'DONE', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "VendorEngagementStatus" AS ENUM ('NOT_NEEDED', 'NEEDED', 'CONTACTED', 'QUOTED', 'CONFIRMED', 'PAID', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "CommunicationDirection" AS ENUM ('INBOUND', 'OUTBOUND', 'INTERNAL');
+
+-- CreateEnum
+CREATE TYPE "CommunicationChannel" AS ENUM ('EMAIL', 'PHONE', 'WHATSAPP', 'SMS', 'IN_PERSON');
+
+-- CreateEnum
+CREATE TYPE "CapacitySeverity" AS ENUM ('NONE', 'WARNING', 'BLOCK');
+
+-- CreateEnum
+CREATE TYPE "CalendarProvider" AS ENUM ('GOOGLE');
+
+-- CreateEnum
+CREATE TYPE "CalendarEventKind" AS ENUM ('HOLD', 'BOOKED');

@@ -1,13 +1,9 @@
-// prisma/schema.prisma (single-tenant MVP) — UPDATED to match Inquiry form UI
-// Includes: name, email, phone, event type, event date, address, adults/children, vision/notes.
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum UserRole {
@@ -107,6 +103,7 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
+  passwordHash String?
   role      UserRole @default(USER)
   isActive  Boolean  @default(true)
 
@@ -116,6 +113,9 @@ model User {
   assignedInquiries Inquiry[]     @relation("InquiryAssignee")
   assignedTasks     Task[]        @relation("TaskAssignee")
   activity          ActivityLog[] @relation("ActorActivity")
+
+  createdCommunications Communication[] @relation("CommunicationCreatedBy")
+  createdAttachments    Attachment[]    @relation("AttachmentCreatedBy")
 }
 
 model Customer {
@@ -208,7 +208,7 @@ model Proposal {
   followUpAt DateTime?
   expiresAt  DateTime?
 
-  acceptedPackageId String?
+  acceptedPackageId String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -284,6 +284,7 @@ model Booking {
   updatedAt DateTime @updatedAt
 
   inquiry Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  activities ActivityLog[] @relation("BookingActivityLogs")
 
   @@index([status])
   @@index([holdExpiresAt])
@@ -456,7 +457,7 @@ model Communication {
   inquiry   Inquiry?      @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
   proposal  Proposal?     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
   event     EventProject? @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  createdBy User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy User?         @relation("CommunicationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([occurredAt])
   @@index([inquiryId])
@@ -484,7 +485,7 @@ model Attachment {
   proposal  Proposal?     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
   event     EventProject? @relation(fields: [eventId], references: [id], onDelete: Cascade)
   task      Task?         @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  createdBy User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy User?         @relation("AttachmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([inquiryId])
@@ -512,7 +513,7 @@ model ActivityLog {
 
   inquiry  Inquiry?  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
   proposal Proposal? @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking  Booking?  @relation("BookingActivityLogs", fields: [bookingId], references: [id], onDelete: Cascade)
   event    EventProject? @relation(fields: [eventId], references: [id], onDelete: Cascade)
   task     Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
