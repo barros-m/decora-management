@@ -131,19 +131,19 @@ export function InquiriesTable({ inquiries }: InquiriesTableProps) {
             <table className="min-w-full text-left">
               <thead>
                 <tr className="border-b border-primary/10 bg-primary-soft">
-                  <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-stone-700">
                     Client
                   </th>
-                  <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-stone-700">
                     Event
                   </th>
-                  <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-stone-700">
                     Date
                   </th>
-                  <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-stone-700">
                     Status
                   </th>
-                  <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-stone-700">
                     Actions
                   </th>
                 </tr>

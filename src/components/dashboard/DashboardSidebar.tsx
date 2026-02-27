@@ -118,7 +118,7 @@ export function DashboardSidebar({ userName }: DashboardSidebarProps) {
   return (
     <aside className="flex h-full w-full flex-col border border-primary/15 bg-white/90 backdrop-blur lg:rounded-none lg:border-r lg:border-l-0 lg:border-y-0 lg:bg-white/70">
       {/* Header */}
-      <div className="border-b border-primary/10 px-6 py-5">
+      <div className="border-b border-primary/15 bg-stone-50/60 px-6 py-5">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
