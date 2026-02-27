@@ -1,4 +1,5 @@
 "use client";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -62,8 +63,52 @@ type DashboardSidebarProps = {
   userName: string;
 };
 
+function UserPopover({ userName, isOpen, onClose }: { userName: string; isOpen: boolean; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      ref={ref}
+      className="absolute bottom-full left-0 mb-2 w-full rounded-lg border border-stone-200 bg-white shadow-lg"
+    >
+      <div className="px-4 py-3 border-b border-stone-100">
+        <p className="text-sm font-semibold text-stone-900">{userName}</p>
+        <p className="text-xs text-stone-500">Event Lead</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => signOut({ callbackUrl: "/login" })}
+        className="w-full px-4 py-2 text-left text-sm font-medium text-stone-700 hover:bg-stone-50 transition flex items-center gap-2"
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+        Sign out
+      </button>
+    </div>
+  );
+}
+
 export function DashboardSidebar({ userName }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -71,30 +116,34 @@ export function DashboardSidebar({ userName }: DashboardSidebarProps) {
   };
 
   return (
-    <aside className="flex h-full w-full flex-col border border-primary/15 bg-white/90 p-6 backdrop-blur lg:rounded-none lg:border-r lg:border-l-0 lg:border-y-0">
-      <div className="mb-8 flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10Z" />
-          </svg>
-        </div>
-        <div>
-          <p className="text-xl font-semibold text-stone-900">Decora Florida</p>
-          <p className="text-xs text-stone-500">Management</p>
+    <aside className="flex h-full w-full flex-col border border-primary/15 bg-white/90 backdrop-blur lg:rounded-none lg:border-r lg:border-l-0 lg:border-y-0 lg:bg-white/70">
+      {/* Header */}
+      <div className="border-b border-primary/10 px-6 py-5">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10Z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-lg font-bold text-stone-900">Decora</p>
+            <p className="text-xs font-medium text-stone-500">Florida Management</p>
+          </div>
         </div>
       </div>
 
-      <nav className="space-y-2">
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
         {SIDEBAR_TABS.map((tab) => {
           const selected = isActive(tab.href);
           return (
             <Link
               key={tab.id}
               href={tab.href}
-              className={`flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-left text-sm font-medium transition ${
+              className={`flex h-11 w-full items-center gap-3 rounded-lg px-4 text-left text-sm font-medium transition-all ${
                 selected
-                  ? "bg-primary/20 text-stone-900"
-                  : "text-stone-600 hover:bg-primary/10 hover:text-stone-900"
+                  ? "bg-primary/15 text-primary shadow-sm"
+                  : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
               }`}
             >
               <Icon name={tab.icon} />
@@ -104,18 +153,32 @@ export function DashboardSidebar({ userName }: DashboardSidebarProps) {
         })}
       </nav>
 
-      <div className="mt-auto space-y-4">
-        <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4">
-          <p className="text-sm font-semibold text-stone-800">{userName}</p>
-          <p className="text-xs text-stone-500">Event Lead</p>
+      {/* User Section */}
+      <div className="border-t border-primary/10 px-4 py-4">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            className="relative w-full rounded-lg border border-primary/15 bg-gradient-to-br from-primary/10 to-primary/5 p-4 text-left transition hover:border-primary/30 hover:bg-gradient-to-br hover:from-primary/15 hover:to-primary/10"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-stone-900">{userName}</p>
+                <p className="text-xs text-stone-500">Event Lead</p>
+              </div>
+              <svg
+                viewBox="0 0 24 24"
+                className={`h-4 w-4 text-stone-600 transition-transform ${isUserMenuOpen ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M19 14l-7-7-7 7" />
+              </svg>
+            </div>
+          </button>
+          <UserPopover userName={userName} isOpen={isUserMenuOpen} onClose={() => setIsUserMenuOpen(false)} />
         </div>
-        <button
-          type="button"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="inline-flex h-11 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2"
-        >
-          Sign out
-        </button>
       </div>
     </aside>
   );
