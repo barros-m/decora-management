@@ -1,17 +1,20 @@
 "use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 type SidebarTab = {
   id: string;
   label: string;
   icon: string;
+  href: string;
 };
 
 const SIDEBAR_TABS: SidebarTab[] = [
-  { id: "dashboard", label: "Dashboard", icon: "grid" },
-  { id: "inquiries", label: "Inquiries", icon: "inbox" },
-  { id: "events", label: "Events", icon: "calendar" },
-  { id: "vendors", label: "Vendors", icon: "users" },
+  { id: "dashboard", label: "Dashboard", icon: "grid", href: "/" },
+  { id: "inquiries", label: "Inquiries", icon: "inbox", href: "/inquiries" },
+  { id: "events", label: "Events", icon: "calendar", href: "/events" },
+  { id: "vendors", label: "Vendors", icon: "users", href: "/vendors" },
 ];
 
 function Icon({ name }: { name: string }) {
@@ -56,16 +59,17 @@ function Icon({ name }: { name: string }) {
 }
 
 type DashboardSidebarProps = {
-  activeTab: string;
-  onSelectTab: (tabId: string) => void;
   userName: string;
 };
 
-export function DashboardSidebar({
-  activeTab,
-  onSelectTab,
-  userName,
-}: DashboardSidebarProps) {
+export function DashboardSidebar({ userName }: DashboardSidebarProps) {
+  const pathname = usePathname();
+
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
+  };
+
   return (
     <aside className="flex h-full w-full flex-col border border-primary/15 bg-white/90 p-6 backdrop-blur lg:rounded-none lg:border-r lg:border-l-0 lg:border-y-0">
       <div className="mb-8 flex items-center gap-3">
@@ -82,21 +86,20 @@ export function DashboardSidebar({
 
       <nav className="space-y-2">
         {SIDEBAR_TABS.map((tab) => {
-          const selected = tab.id === activeTab;
+          const selected = isActive(tab.href);
           return (
-            <button
+            <Link
               key={tab.id}
-              type="button"
-              onClick={() => onSelectTab(tab.id)}
+              href={tab.href}
               className={`flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-left text-sm font-medium transition ${
                 selected
                   ? "bg-primary/20 text-stone-900"
-                  : "text-stone-600 hover:bg-primary/12 hover:text-stone-900"
+                  : "text-stone-600 hover:bg-primary/10 hover:text-stone-900"
               }`}
             >
               <Icon name={tab.icon} />
               <span>{tab.label}</span>
-            </button>
+            </Link>
           );
         })}
       </nav>

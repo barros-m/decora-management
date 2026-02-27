@@ -32,28 +32,33 @@ async function main() {
     );
   }
 
-  if (password.length < 8) {
+  const safeEmail = email as string;
+  const safePassword = password as string;
+  const safeName = name as string;
+  const safeRole = role as "OWNER" | "ADMIN" | "USER";
+
+  if (safePassword.length < 8) {
     throw new Error("SEED_USER_PASSWORD must be at least 8 characters.");
   }
 
-  if (role !== "OWNER" && role !== "ADMIN" && role !== "USER") {
+  if (safeRole !== "OWNER" && safeRole !== "ADMIN" && safeRole !== "USER") {
     throw new Error("SEED_USER_ROLE must be one of: OWNER, ADMIN, USER.");
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await bcrypt.hash(safePassword, 12);
 
   const user = await prisma.user.upsert({
-    where: { email: email! },
+    where: { email: safeEmail },
     create: {
-      email: email!,
-      name: name!,
-      role: role as "OWNER" | "ADMIN" | "USER",
+      email: safeEmail,
+      name: safeName,
+      role: safeRole,
       isActive: true,
       passwordHash,
     },
     update: {
-      name: name!,
-      role: role as "OWNER" | "ADMIN" | "USER",
+      name: safeName,
+      role: safeRole,
       isActive: true,
       passwordHash,
     },
