@@ -68,6 +68,56 @@ async function main() {
   if (!user?.id) throw new Error("Seed user upsert failed.");
 
   console.log(`Seeded user: ${user.email} (${user.role})`);
+
+  // Seed inquiries with different statuses
+  const statuses: Array<"NEW" | "IN_REVIEW" | "WAITING_ON_CLIENT" | "QUOTING" | "QUOTED_WAITING" | "ACCEPTED_NOT_BOOKED" | "BOOKED" | "LOST" | "DISQUALIFIED" | "EXPIRED"> = [
+    "NEW",
+    "IN_REVIEW",
+    "WAITING_ON_CLIENT",
+    "QUOTING",
+    "QUOTED_WAITING",
+    "ACCEPTED_NOT_BOOKED",
+    "BOOKED",
+    "LOST",
+    "DISQUALIFIED",
+    "EXPIRED",
+  ];
+
+  const inquiries = await Promise.all(
+    statuses.map((status, index) =>
+      prisma.inquiry.upsert({
+        where: { id: `inquiry-${status.toLowerCase()}` },
+        create: {
+          id: `inquiry-${status.toLowerCase()}`,
+          contactName: `Test Contact - ${status}`,
+          contactEmail: `contact-${status.toLowerCase()}@test.com`,
+          contactPhone: "+1 (555) 123-4567",
+          eventType: "Wedding Reception",
+          eventDate: new Date(2025, 5, 15 + index), // June 2025
+          city: "San Francisco",
+          state: "CA",
+          zipCode: "94105",
+          address1: "123 Market Street",
+          guestCountAdults: 50 + index * 5,
+          guestCountChildren: 10 + index * 2,
+          visionNotes: `This is a test inquiry in ${status} status for testing the inquiry management system.`,
+          source: "Website",
+          status,
+          assignedToId: user.id,
+        },
+        update: {
+          status,
+          assignedToId: user.id,
+        },
+        select: { id: true, contactName: true, status: true },
+      })
+    )
+  );
+
+  console.log(`\nSeeded ${inquiries.length} inquiries with different statuses:`);
+  inquiries.forEach((inq) => {
+    console.log(`  - ${inq.contactName} (${inq.status})`);
+  });
 }
 
 main()

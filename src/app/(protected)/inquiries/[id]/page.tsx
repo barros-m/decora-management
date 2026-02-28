@@ -3,7 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { InquiryStatusBadge } from "@/src/components/inquiries/InquiryStatusBadge";
-import { getInquiryByIdService } from "@/src/server/services/inquiryService";
+import { StatusTransitionSelect } from "@/src/components/inquiries/StatusTransitionSelect";
+import {
+  getInquiryByIdService,
+  getValidInquiryTransitionsService,
+  getInquiryActivityService,
+} from "@/src/server/services/inquiryService";
+import { TERMINAL_STATUSES } from "@/src/server/services/inquiryStateValidator";
+import type { InquiryStatus } from "@prisma/client";
 
 function formatDate(value: Date | null) {
   if (!value) return "—";
@@ -50,6 +57,9 @@ export default async function InquiryDetailsPage({
   const { id } = await params;
   const inquiry = await getInquiryByIdService(id);
   if (!inquiry) notFound();
+
+  const validTransitions = await getValidInquiryTransitionsService(id);
+  const activityLogs = await getInquiryActivityService(id);
 
   const fullAddress = [inquiry.address1, inquiry.address2]
     .filter(Boolean)
@@ -109,6 +119,36 @@ export default async function InquiryDetailsPage({
         <InquiryStatusBadge status={inquiry.status} />
       </div>
 
+      {/* Status & Transitions */}
+      <article className="rounded-[2rem] border border-primary/15 bg-white/95 p-6">
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-primary">
+          Status & Actions
+        </h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-stone-500">Current</span>
+          <InquiryStatusBadge status={inquiry.status} />
+
+          {validTransitions && validTransitions.length > 0 && (
+            <>
+              <div className="h-4 w-px bg-stone-200" />
+              <StatusTransitionSelect
+                inquiryId={id}
+                fromStatus={inquiry.status as InquiryStatus}
+                validTransitions={validTransitions as InquiryStatus[]}
+              />
+            </>
+          )}
+
+          {TERMINAL_STATUSES.includes(inquiry.status as InquiryStatus) &&
+            !validTransitions?.length && (
+              <>
+                <div className="h-4 w-px bg-stone-200" />
+                <p className="text-sm text-stone-400">No further changes available.</p>
+              </>
+            )}
+        </div>
+      </article>
+
       {/* Detail cards */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Event */}
@@ -161,6 +201,65 @@ export default async function InquiryDetailsPage({
           <p className="text-sm italic text-stone-300">
             No vision notes provided yet.
           </p>
+        )}
+      </article>
+
+      {/* Proposals Section */}
+      <article className="rounded-[2rem] border border-primary/15 bg-white/95 p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-primary">
+            Proposals
+          </h2>
+          <Link
+            href={`/inquiries/${id}/proposal/new`}
+            className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90"
+          >
+            Create proposal
+          </Link>
+        </div>
+        <p className="text-sm italic text-stone-400">
+          No proposals yet. Create one to get started.
+        </p>
+      </article>
+
+      {/* Booking Section */}
+      <article className="rounded-[2rem] border border-primary/15 bg-white/95 p-6">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-primary">
+          Booking
+        </h2>
+        <p className="text-sm italic text-stone-400">
+          No booking created yet.
+        </p>
+      </article>
+
+      {/* Activity Timeline */}
+      <article className="rounded-[2rem] border border-primary/15 bg-white/95 p-6">
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-primary">
+          Activity Timeline
+        </h2>
+        {activityLogs && activityLogs.length > 0 ? (
+          <div className="space-y-4">
+            {activityLogs.map((log) => (
+              <div key={log.id} className="flex gap-4 border-l-2 border-primary/20 pl-4">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium text-stone-900">
+                    {log.message || log.type}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-stone-500">
+                    {log.actor && (
+                      <>
+                        <span>{log.actor.name || log.actor.email}</span>
+                        <span>•</span>
+                      </>
+                    )}
+                    <span>{formatDateTime(log.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm italic text-stone-400">No activity yet.</p>
         )}
       </article>
 

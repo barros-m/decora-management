@@ -10,13 +10,23 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; pill: string }
     dot: "bg-primary",
     pill: "bg-primary/10 text-primary border-primary/20",
   },
-  QUOTED_WAITING: {
-    label: "Quoted",
-    dot: "bg-amber-400",
-    pill: "bg-amber-50 text-amber-700 border-amber-200",
+  IN_REVIEW: {
+    label: "In Review",
+    dot: "bg-blue-400",
+    pill: "bg-blue-50 text-blue-700 border-blue-200",
   },
   WAITING_ON_CLIENT: {
     label: "Waiting",
+    dot: "bg-amber-400",
+    pill: "bg-amber-50 text-amber-700 border-amber-200",
+  },
+  QUOTING: {
+    label: "Quoting",
+    dot: "bg-cyan-400",
+    pill: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  },
+  QUOTED_WAITING: {
+    label: "Quoted",
     dot: "bg-amber-400",
     pill: "bg-amber-50 text-amber-700 border-amber-200",
   },

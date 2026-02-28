@@ -34,10 +34,10 @@ export type InquiryDetails = {
 };
 
 export type UpsertInquiryInput = {
-  contactName: string;
-  contactEmail: string;
+  contactName?: string;
+  contactEmail?: string;
   contactPhone?: string | null;
-  eventType: string;
+  eventType?: string;
   eventDate?: Date | null;
   city?: string | null;
   state?: string | null;
@@ -48,6 +48,8 @@ export type UpsertInquiryInput = {
   guestCountChildren?: number | null;
   visionNotes?: string | null;
   source?: string | null;
+  status?: InquiryStatus;
+  assignedToId?: string | null;
 };
 
 export async function listInquiries(db: DbClient): Promise<InquiryListItem[]> {
@@ -96,7 +98,11 @@ export async function getInquiryById(
 
 export async function createInquiry(
   db: DbClient,
-  data: UpsertInquiryInput,
+  data: Omit<UpsertInquiryInput, "status" | "assignedToId"> & {
+    contactName: string;
+    contactEmail: string;
+    eventType: string;
+  },
 ): Promise<{ id: string }> {
   return db.inquiry.create({
     data: {
@@ -131,24 +137,38 @@ export async function updateInquiry(
 
   if (!existing) return null;
 
+  const updateData: Prisma.InquiryUpdateInput = {};
+
+  if (data.contactName !== undefined) updateData.contactName = data.contactName;
+  if (data.contactEmail !== undefined) updateData.contactEmail = data.contactEmail;
+  if (data.contactPhone !== undefined) updateData.contactPhone = data.contactPhone;
+  if (data.eventType !== undefined) updateData.eventType = data.eventType;
+  if (data.eventDate !== undefined) updateData.eventDate = data.eventDate;
+  if (data.city !== undefined) updateData.city = data.city;
+  if (data.state !== undefined) updateData.state = data.state;
+  if (data.address1 !== undefined) updateData.address1 = data.address1;
+  if (data.address2 !== undefined) updateData.address2 = data.address2;
+  if (data.zipCode !== undefined) updateData.zipCode = data.zipCode;
+  if (data.guestCountAdults !== undefined) updateData.guestCountAdults = data.guestCountAdults;
+  if (data.guestCountChildren !== undefined) updateData.guestCountChildren = data.guestCountChildren;
+  if (data.visionNotes !== undefined) updateData.visionNotes = data.visionNotes;
+  if (data.source !== undefined) updateData.source = data.source;
+
+  if (data.status !== undefined) {
+    updateData.status = data.status;
+  }
+
+  if (data.assignedToId !== undefined) {
+    if (data.assignedToId === null) {
+      updateData.assignedTo = { disconnect: true };
+    } else {
+      updateData.assignedTo = { connect: { id: data.assignedToId } };
+    }
+  }
+
   return db.inquiry.update({
     where: { id: inquiryId },
-    data: {
-      contactName: data.contactName,
-      contactEmail: data.contactEmail,
-      contactPhone: data.contactPhone ?? null,
-      eventType: data.eventType,
-      eventDate: data.eventDate ?? null,
-      city: data.city ?? null,
-      state: data.state ?? null,
-      address1: data.address1 ?? null,
-      address2: data.address2 ?? null,
-      zipCode: data.zipCode ?? null,
-      guestCountAdults: data.guestCountAdults ?? null,
-      guestCountChildren: data.guestCountChildren ?? null,
-      visionNotes: data.visionNotes ?? null,
-      source: data.source ?? null,
-    },
+    data: updateData,
     select: { id: true },
   });
 }

@@ -1,4 +1,4 @@
-import type { InquiryStatus } from "@prisma/client";
+import type { InquiryStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "@/src/server/db";
@@ -12,6 +12,8 @@ import {
   type InquiryListItem,
   type UpsertInquiryInput,
 } from "@/src/server/repositories/inquiryRepository";
+import { assertInquiryTransition, getValidNextStatuses } from "@/src/server/services/inquiryStateValidator";
+import { getInquiryActivityLogs, type ActivityLogItem } from "@/src/server/repositories/activityLogRepository";
 
 const inquiryInputSchema = z.object({
   contactName: z.string().trim().min(1),
@@ -72,7 +74,7 @@ export async function createInquiryService(
   const data = toRepositoryInput(parsed);
 
   return prisma.$transaction(async (tx) => {
-    const inquiry = await createInquiry(tx, data);
+    const inquiry = await createInquiry(tx, data as any);
 
     await createInquiryActivityLog(tx, {
       inquiryId: inquiry.id,
@@ -113,4 +115,107 @@ export async function updateInquiryService(
 
 export function getInquiryStatusLabel(status: InquiryStatus): string {
   return status.replaceAll("_", " ");
+}
+
+/**
+ * Update inquiry status with state machine validation.
+ * Only allows valid status transitions.
+ */
+export async function updateInquiryStatusService(
+  inquiryId: string,
+  newStatus: InquiryStatus,
+  options?: {
+    message?: string;
+    data?: Prisma.InputJsonValue;
+    actorId?: string | null;
+  },
+): Promise<InquiryDetails | null> {
+  return prisma.$transaction(async (tx) => {
+    // Get current inquiry
+    const inquiry = await getInquiryById(tx, inquiryId);
+    if (!inquiry) return null;
+
+    // Validate state transition
+    assertInquiryTransition(inquiry.status, newStatus);
+
+    // Update status
+    const updated = await updateInquiry(tx, inquiryId, { status: newStatus });
+    if (!updated) return null;
+
+    // Log the transition
+    await createInquiryActivityLog(tx, {
+      inquiryId,
+      actorId: options?.actorId ?? null,
+      type: "INQUIRY_STATUS_CHANGED",
+      message: options?.message ?? `Status changed to ${getInquiryStatusLabel(newStatus)}`,
+      data: options?.data,
+    });
+
+    return getInquiryById(tx, inquiryId);
+  });
+}
+
+/**
+ * Assign an inquiry to a user.
+ */
+export async function assignInquiryService(
+  inquiryId: string,
+  userId: string,
+  actorId?: string | null,
+): Promise<InquiryDetails | null> {
+  return prisma.$transaction(async (tx) => {
+    const inquiry = await getInquiryById(tx, inquiryId);
+    if (!inquiry) return null;
+
+    // Update assigned user
+    const updated = await updateInquiry(tx, inquiryId, { assignedToId: userId });
+    if (!updated) return null;
+
+    // Log the assignment
+    await createInquiryActivityLog(tx, {
+      inquiryId,
+      actorId,
+      type: "INQUIRY_ASSIGNED",
+      message: `Inquiry assigned to user ${userId}`,
+      data: { assignedToId: userId },
+    });
+
+    return getInquiryById(tx, inquiryId);
+  });
+}
+
+/**
+ * Request more information from client.
+ * Transitions to WAITING_ON_CLIENT status.
+ */
+export async function requestMoreInfoService(
+  inquiryId: string,
+  message: string,
+  actorId?: string | null,
+): Promise<InquiryDetails | null> {
+  return updateInquiryStatusService(inquiryId, "WAITING_ON_CLIENT", {
+    message: `Requested more info: ${message}`,
+    data: { originalMessage: message },
+    actorId,
+  });
+}
+
+/**
+ * Get the valid next statuses for an inquiry.
+ */
+export async function getValidInquiryTransitionsService(
+  inquiryId: string,
+): Promise<InquiryStatus[] | null> {
+  const inquiry = await getInquiryByIdService(inquiryId);
+  if (!inquiry) return null;
+  return getValidNextStatuses(inquiry.status);
+}
+
+/**
+ * Get activity logs for an inquiry.
+ */
+export async function getInquiryActivityService(
+  inquiryId: string,
+): Promise<ActivityLogItem[]> {
+  return prisma.$transaction((tx) => getInquiryActivityLogs(tx, inquiryId));
 }
