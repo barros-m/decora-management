@@ -4,11 +4,13 @@ import { notFound } from "next/navigation";
 
 import { InquiryStatusBadge } from "@/src/components/inquiries/InquiryStatusBadge";
 import { StatusTransitionSelect } from "@/src/components/inquiries/StatusTransitionSelect";
+import { ProposalStatusBadge } from "@/src/components/proposals/ProposalStatusBadge";
 import {
   getInquiryByIdService,
   getValidInquiryTransitionsService,
   getInquiryActivityService,
 } from "@/src/server/services/inquiryService";
+import { getProposalsByInquiryService } from "@/src/server/services/proposalService";
 import { TERMINAL_STATUSES } from "@/src/server/services/inquiryStateValidator";
 import type { InquiryStatus } from "@prisma/client";
 
@@ -58,8 +60,11 @@ export default async function InquiryDetailsPage({
   const inquiry = await getInquiryByIdService(id);
   if (!inquiry) notFound();
 
-  const validTransitions = await getValidInquiryTransitionsService(id);
-  const activityLogs = await getInquiryActivityService(id);
+  const [validTransitions, activityLogs, proposals] = await Promise.all([
+    getValidInquiryTransitionsService(id),
+    getInquiryActivityService(id),
+    getProposalsByInquiryService(id),
+  ]);
 
   const fullAddress = [inquiry.address1, inquiry.address2]
     .filter(Boolean)
@@ -214,12 +219,54 @@ export default async function InquiryDetailsPage({
             href={`/inquiries/${id}/proposal/new`}
             className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90"
           >
-            Create proposal
+            + New proposal
           </Link>
         </div>
-        <p className="text-sm italic text-stone-400">
-          No proposals yet. Create one to get started.
-        </p>
+
+        {proposals.length === 0 ? (
+          <p className="text-sm italic text-stone-400">
+            No proposals yet. Create one to get started.
+          </p>
+        ) : (
+          <div className="divide-y divide-stone-100">
+            {proposals.map((proposal) => {
+              const grandTotal = proposal.packages.reduce(
+                (s, pkg) => s + pkg.subtotalCents,
+                0,
+              );
+              return (
+                <Link
+                  key={proposal.id}
+                  href={`/inquiries/${id}/proposal/${proposal.id}`}
+                  className="flex items-center justify-between gap-4 py-3 transition hover:opacity-70"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-stone-700">
+                      v{proposal.version}
+                    </span>
+                    <ProposalStatusBadge status={proposal.status} />
+                    <span className="text-xs text-stone-400">
+                      {proposal.packages.length} package{proposal.packages.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-stone-800">
+                      {new Intl.NumberFormat("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      }).format(grandTotal / 100)}
+                    </p>
+                    {proposal.expiresAt && (
+                      <p className="text-xs text-stone-400">
+                        Expires {new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit" }).format(proposal.expiresAt)}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </article>
 
       {/* Booking Section */}
